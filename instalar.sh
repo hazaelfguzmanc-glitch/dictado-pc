@@ -104,7 +104,7 @@ Environment=PYTHONUNBUFFERED=1
 Environment=HF_HOME=%h/.cache/huggingface
 Environment=DICTADO_PUERTO=$PUERTO
 Environment=DICTADO_MODELO=$MODELO
-Environment=DICTADO_EQUIPO=${NOMBRE:-$(hostname)}
+Environment="DICTADO_EQUIPO=${NOMBRE:-$(hostname)}"
 # Minutos sin dictar antes de soltar el modelo y devolver la VRAM (0 = nunca).
 Environment=DICTADO_DESCARGAR_MIN=30
 $GPULIBS
