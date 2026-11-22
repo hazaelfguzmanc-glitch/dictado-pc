@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Servidor de dictado: SOLO voz. El telefono manda audio, la PC escribe.
 
-Es la version recortada de `dictado-remoto` (que tambien escanea y tiene bot de
-Telegram): aca solo estan los tres endpoints que usa la APK y el aviso por UDP
-que la hace aparecer sola en el selector de servidores del telefono.
+Es la version recortada de `dictado-remoto` (que ademas tiene bot de Telegram y
+la web): aca estan los endpoints que usa la APK (dictado, capturas/escaneo) y el
+aviso por UDP que la hace aparecer sola en el selector de servidores del
+telefono. Sin escaneo, la captura de pantalla fallaria al elegir esta PC.
 
     /api/salud        "¿quien dicta aca?" (nombre del equipo + modelo)
     /api/parcial      ultima palabra mientras se graba (detecta "enviar")
     /api/transcribir  transcribe y pega en la ventana enfocada de la PC
+    /api/escanear     recibe el PDF del telefono (foto o captura) y lo pega
+    /api/escaneos     los ultimos PDF recibidos
 
 El motor (faster-whisper large-v3 en la GPU, prompt de estilo, hotwords y guarda
 de eco) es el mismo archivo `motor.py` de `dictado-remoto`: no hay dos motores
@@ -26,9 +29,16 @@ from pathlib import Path
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
+from escaner import (
+    copiar_al_portapapeles,
+    guardar as guardar_escaneo,
+    notificar as notificar_escaneo,
+    pegar_en_pc,
+    ultimos as escaneos_ultimos,
+)
 from motor import AUDIO_DIR, IDIOMA, AudioInvalido, es_orden, motor
 
-VERSION = "1.0"
+VERSION = "1.1"
 
 # 🛡️ EL NOMBRE ES LO QUE MUESTRA EL SELECTOR DEL TELEFONO. Por defecto el
 # hostname; se puede fijar con DICTADO_EQUIPO (por ejemplo "LinuxWork").
@@ -108,6 +118,47 @@ async def parcial(audio: UploadFile = File(...), idioma: str = Form(IDIOMA)) -> 
         crudo.unlink(missing_ok=True)
         crudo.with_suffix(".wav").unlink(missing_ok=True)
     return {"texto": texto, "orden": es_orden(texto)}
+
+
+@app.post("/api/escanear")
+async def escanear(
+    pdf: UploadFile = File(...),
+    pegar: bool = Form(True),
+    origen: str = Form("movil"),
+) -> JSONResponse:
+    """Guarda el PDF que manda el teléfono, lo copia y lo pega en la PC.
+
+    🛡️ ES EL MISMO ENDPOINT QUE USA LA PESTAÑA ESCANEAR Y EL AVISO DE CAPTURAS
+    DEL APK: si la PC elegida en el selector no lo tiene, "Enviar a la PC" de una
+    captura falla con 404. Por eso este servidor, aunque sea "solo dictado",
+    también recibe imágenes: se guardan en `~/Escaneos`, quedan en el
+    portapapeles como archivo y se pegan con Ctrl+V en la ventana enfocada.
+    """
+    try:
+        destino = guardar_escaneo(pdf.file, origen=origen)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    copiado = copiar_al_portapapeles(destino)
+    pegado = bool(copiado and pegar and pegar_en_pc())
+    notificar_escaneo(destino, pegado)
+    return JSONResponse(
+        {
+            "ok": True,
+            "archivo": str(destino),
+            "nombre": destino.name,
+            "carpeta": str(destino.parent),
+            "bytes": destino.stat().st_size,
+            "copiado": copiado,
+            "pegado": pegado,
+        }
+    )
+
+
+@app.get("/api/escaneos")
+def escaneos(n: int = 20) -> dict:
+    """Los últimos PDF recibidos (los lee el agente y el propio teléfono)."""
+    return {"items": escaneos_ultimos(n)}
 
 
 @app.post("/api/transcribir")

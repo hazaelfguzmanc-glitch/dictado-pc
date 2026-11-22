@@ -35,8 +35,8 @@ done
 decir() { printf '  %s\n' "$*"; }
 titulo() { printf '\n== %s\n' "$*"; }
 
-[[ -f "$DIR/servidor.py" && -f "$DIR/motor.py" ]] || {
-    echo "error: faltan servidor.py / motor.py al lado de este script" >&2
+[[ -f "$DIR/servidor.py" && -f "$DIR/motor.py" && -f "$DIR/escaner.py" ]] || {
+    echo "error: faltan servidor.py / motor.py / escaner.py al lado de este script" >&2
     exit 1
 }
 
@@ -63,6 +63,7 @@ titulo "Programa"
 mkdir -p "$DEST"
 install -m 644 "$DIR/servidor.py" "$DEST/servidor.py"
 install -m 644 "$DIR/motor.py" "$DEST/motor.py"
+install -m 644 "$DIR/escaner.py" "$DEST/escaner.py"
 decir "copiado a $DEST"
 
 if [[ ! -x "$VENV/bin/python" ]]; then

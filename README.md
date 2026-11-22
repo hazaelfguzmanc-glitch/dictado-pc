@@ -8,7 +8,10 @@ No hay que escribir una IP. La PC contesta el aviso `DICTADO?` que manda el
 teléfono al broadcast de la red (UDP 8099) y se presenta con el nombre del
 equipo; en la app se cambia de PC manteniendo la bola → *PC / Cambiar*.
 
-Es la parte de voz de `dictado-remoto`, sin escaneo ni bot de Telegram.
+Es la parte de `dictado-remoto` que usa el teléfono, sin bot de Telegram ni la
+web: dictado por voz **y** las imágenes que mandás (capturas de pantalla y la
+pestaña Escanear). Sin el escaneo, "Enviar a la PC" de una captura fallaría al
+tener esta PC elegida en el selector.
 
 ## Instalar
 
@@ -61,8 +64,9 @@ la elegís desde "Otra dirección a mano" (o queda en la lista de fijas del buil
 
 | Archivo | Qué es |
 |---|---|
-| `servidor.py` | Los tres endpoints de la APK (`/api/salud`, `/api/parcial`, `/api/transcribir`) y el aviso UDP del selector. |
+| `servidor.py` | Los endpoints de la APK (`/api/salud`, `/api/parcial`, `/api/transcribir`, `/api/escanear`, `/api/escaneos`) y el aviso UDP del selector. |
 | `motor.py` | El motor de transcripción: **una copia** de `dictado-remoto/motor.py`. |
+| `escaner.py` | Guarda el PDF en `~/Escaneos`, lo deja en el portapapeles y lo pega con Ctrl+V. |
 | `instalar.sh` | Paquetes, entorno, servicio y firewall. |
 | `dictado-pc` | El comando de control. |
 | `sincronizar-motor.sh` | Trae el motor actualizado desde `dictado-remoto`. |
@@ -77,6 +81,14 @@ están los audios de prueba y el bot) y se copia:
 
 Hoy el motor es faster-whisper `large-v3` en `cuda/float16` con prompt de estilo,
 `hotwords`, VAD de 2000 ms y guarda de eco (ver el README de `dictado-remoto`).
+
+## Capturas y escaneos
+
+Mismo camino que el dictado: el teléfono arma el PDF y esta PC lo deja en
+`~/Escaneos`, lo copia al portapapeles como archivo y lo pega (Ctrl+V) en la
+ventana enfocada. Es lo que usan el aviso "Enviar a la PC" de una captura de
+pantalla y la pestaña Escanear. Si el Ctrl+V no entra, el archivo queda guardado
+y copiado igual.
 
 ## Puertos
 
