@@ -5,6 +5,7 @@
 #   ./instalar.sh                  # puerto 8099, large-v3 (GPU si hay)
 #   ./instalar.sh --puerto 8199
 #   ./instalar.sh --modelo small   # GPU chica o sin CUDA
+#   ./instalar.sh --nombre "PC Sala"  # cómo aparece en el selector del telefono
 #   ./instalar.sh --sin-ufw        # no tocar el firewall
 #
 # 🛡️ NO TOCA NADA QUE YA ESTE: si otra PC de la red ya dicta en 8099, esta corre
@@ -17,12 +18,14 @@ VENV="$DEST/.venv"
 UNIDAD="$HOME/.config/systemd/user/dictado-pc.service"
 PUERTO=8099
 MODELO="${DICTADO_MODELO:-large-v3}"
+NOMBRE=""
 UFW=1
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --puerto) PUERTO="$2"; shift 2 ;;
         --modelo) MODELO="$2"; shift 2 ;;
+        --nombre) NOMBRE="$2"; shift 2 ;;
         --sin-ufw) UFW=0; shift ;;
         -h|--ayuda) sed -n '2,12p' "$0"; exit 0 ;;
         *) echo "opción desconocida: $1" >&2; exit 1 ;;
@@ -101,6 +104,7 @@ Environment=PYTHONUNBUFFERED=1
 Environment=HF_HOME=%h/.cache/huggingface
 Environment=DICTADO_PUERTO=$PUERTO
 Environment=DICTADO_MODELO=$MODELO
+Environment=DICTADO_EQUIPO=${NOMBRE:-$(hostname)}
 # Minutos sin dictar antes de soltar el modelo y devolver la VRAM (0 = nunca).
 Environment=DICTADO_DESCARGAR_MIN=30
 $GPULIBS
@@ -160,7 +164,7 @@ decir "PC:       $(hostname)"
 decir "LAN:      ${LAN:-?}:$PUERTO"
 decir "Tailscale: ${TS:-—}:$PUERTO"
 decir ""
-decir "En el telefono: abrí Dictado → mantené la bola → elegí $(hostname)."
+decir "En el telefono: abrí Dictado → mantené la bola → elegí ${NOMBRE:-$(hostname)}."
 decir "Aparece sola cuando el teléfono y la PC están en la misma red."
 decir ""
 decir "Comandos: dictado-pc estado | url | reiniciar | logs | apagar"
