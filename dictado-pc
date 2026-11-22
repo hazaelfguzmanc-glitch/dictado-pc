@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# dictado-pc — control del servidor de dictado (el que usa la APK del teléfono).
+#
+#   dictado-pc              estado (igual que `salud`)
+#   dictado-pc url          direcciones LAN y Tailscale de esta PC
+#   dictado-pc prender|apagar|reiniciar
+#   dictado-pc logs         logs en vivo
+#   dictado-pc probar x.m4a transcribe un archivo y muestra el texto
+#   dictado-pc desinstalar  saca el servicio y el programa (deja los modelos)
+set -euo pipefail
+
+# Puerto: el del entorno, el que dejó el instalador, o 8099.
+if [[ -z "${DICTADO_PUERTO:-}" && -f "$HOME/.config/dictado-pc/puerto" ]]; then
+    PUERTO="$(cat "$HOME/.config/dictado-pc/puerto")"
+fi
+PUERTO="${PUERTO:-${DICTADO_PUERTO:-8099}}"
+BASE="http://127.0.0.1:$PUERTO"
+SERVICIO=dictado-pc.service
+
+decir_urls() {
+    local lan ts
+    lan="$(ip -brief addr | awk '{print $3}' | cut -d/ -f1 | grep -E '^192\.168\.' | head -1 || true)"
+    ts="$(tailscale ip -4 2>/dev/null | head -1 || true)"
+    printf 'PC:        %s\n' "$(hostname)"
+    printf 'LAN:       %s\n' "${lan:+$lan:$PUERTO}"
+    printf 'Tailscale: %s\n' "${ts:+$ts:$PUERTO}"
+}
+
+case "${1:-estado}" in
+    estado|salud)
+        if ! resp="$(curl -s -m 3 "$BASE/api/salud")"; then
+            echo "no responde en $BASE — probá: dictado-pc logs" >&2
+            exit 1
+        fi
+        printf '%s' "$resp" | python3 -m json.tool
+        ;;
+    url) decir_urls ;;
+    prender) systemctl --user start "$SERVICIO" && echo "arriba" ;;
+    apagar) systemctl --user stop "$SERVICIO" && echo "abajo" ;;
+    reiniciar) systemctl --user restart "$SERVICIO" && echo "reiniciado" ;;
+    logs) journalctl --user -u "$SERVICIO" -f -n 40 ;;
+    probar)
+        [[ -f "${2:-}" ]] || { echo "uso: dictado-pc probar archivo-de-audio" >&2; exit 1; }
+        curl -s -X POST "$BASE/api/transcribir" \
+            -F "audio=@$2" -F "escribir=false" -F "idioma=es" -F "origen=prueba" \
+            | python3 -m json.tool
+        ;;
+    desinstalar)
+        systemctl --user disable --now "$SERVICIO" 2>/dev/null || true
+        rm -f "$HOME/.config/systemd/user/$SERVICIO"
+        systemctl --user daemon-reload
+        rm -rf "$HOME/.local/share/dictado-pc" "$HOME/.config/dictado-pc"
+        rm -f "$HOME/.local/bin/dictado-pc"
+        echo "fuera. Los modelos de ~/.cache/huggingface quedan (no se bajan de nuevo)."
+        ;;
+    -h|--ayuda|ayuda) sed -n '2,12p' "$0" ;;
+    *) echo "no conozco '$1' — dictado-pc --ayuda" >&2; exit 1 ;;
+esac
