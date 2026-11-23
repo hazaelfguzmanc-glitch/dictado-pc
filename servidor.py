@@ -36,7 +36,15 @@ from escaner import (
     pegar_en_pc,
     ultimos as escaneos_ultimos,
 )
-from motor import AUDIO_DIR, IDIOMA, AudioInvalido, es_orden, motor
+from motor import (
+    AUDIO_DIR,
+    IDIOMA,
+    AudioInvalido,
+    copiar_portapapeles,
+    es_orden,
+    leer_portapapeles,
+    motor,
+)
 
 VERSION = "1.1"
 
@@ -194,3 +202,18 @@ async def transcribir(
         else False
     )
     return JSONResponse(resultado)
+
+
+@app.post("/api/portapapeles")
+async def portapapeles(datos: dict) -> dict:
+    """El texto que copiaste en el teléfono, al portapapeles de la PC."""
+    texto = str(datos.get("texto", ""))
+    if not texto.strip():
+        raise HTTPException(400, "texto vacio")
+    return {"copiado": copiar_portapapeles(texto), "caracteres": len(texto)}
+
+
+@app.get("/api/portapapeles")
+def portapapeles_leer() -> dict:
+    """Lo que hay en el portapapeles de la PC (para el camino inverso)."""
+    return {"texto": leer_portapapeles()}

@@ -500,4 +500,42 @@ class Motor:
         return env
 
 
+# -- portapapeles de la PC (sincronización con el teléfono) -----------------
+
+def _env_grafico_global() -> dict:
+    return Motor._env_grafico()
+
+
+def copiar_portapapeles(texto: str) -> bool:
+    """Deja `texto` en el portapapeles de la PC (lo que copiaste en el celular)."""
+    if not texto or not shutil.which("wl-copy"):
+        return False
+    try:
+        subprocess.run(
+            ["wl-copy", "--type", "text/plain;charset=utf-8"],
+            input=texto, text=True, timeout=10, check=True,
+            env=_env_grafico_global(),
+        )
+        return True
+    except Exception as exc:  # noqa: BLE001
+        print(f"[portapapeles] wl-copy fallo: {exc}", flush=True)
+        return False
+
+
+def leer_portapapeles() -> str:
+    """Lo que hay ahora en el portapapeles de la PC."""
+    if not shutil.which("wl-paste"):
+        return ""
+    try:
+        proc = subprocess.run(
+            ["wl-paste", "--no-newline", "--type", "text/plain;charset=utf-8"],
+            capture_output=True, timeout=5, env=_env_grafico_global(),
+        )
+        if proc.returncode != 0:
+            return ""
+        return proc.stdout.decode("utf-8", "replace")
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 motor = Motor()
