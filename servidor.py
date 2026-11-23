@@ -40,7 +40,8 @@ from motor import (
     AUDIO_DIR,
     IDIOMA,
     AudioInvalido,
-    copiar_portapapeles,
+    poner_portapapeles,
+    estado_portapapeles,
     es_orden,
     leer_portapapeles,
     motor,
@@ -206,14 +207,28 @@ async def transcribir(
 
 @app.post("/api/portapapeles")
 async def portapapeles(datos: dict) -> dict:
-    """El texto que copiaste en el teléfono, al portapapeles de la PC."""
+    """Texto que llega al portapapeles de la PC (desde el teléfono o a mano)."""
     texto = str(datos.get("texto", ""))
     if not texto.strip():
         raise HTTPException(400, "texto vacio")
-    return {"copiado": copiar_portapapeles(texto), "caracteres": len(texto)}
+    origen = str(datos.get("origen", "telefono"))
+    ok = poner_portapapeles(texto, origen=origen)
+    return {"copiado": ok, "caracteres": len(texto)}
 
 
 @app.get("/api/portapapeles")
-def portapapeles_leer() -> dict:
-    """Lo que hay en el portapapeles de la PC (para el camino inverso)."""
-    return {"texto": leer_portapapeles()}
+def portapapeles_leer(version: int = -1) -> dict:
+    """Lo que hay en el portapapeles de la PC.
+
+    `version` es la última que vio el teléfono: si no coincide, la respuesta trae
+    `cambiado=true` y el teléfono lo escribe en su portapapeles (camino PC →
+    teléfono). Si `origen` es "telefono", es lo que él mismo mandó y no se
+    devuelve.
+    """
+    estado = estado_portapapeles()
+    return {
+        "texto": estado["texto"] or "",
+        "version": estado["version"],
+        "origen": estado["origen"],
+        "cambiado": estado["version"] != version,
+    }

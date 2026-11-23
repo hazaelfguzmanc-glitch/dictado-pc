@@ -522,6 +522,38 @@ def copiar_portapapeles(texto: str) -> bool:
         return False
 
 
+# 🛡️ [2026-11-23] ESTADO PARA LA SINCRONIZACIÓN BIDIRECCIONAL: la PC no tiene
+# aviso de "cambió el portapapeles" sin un proceso escuchando, así que el estado
+# se refresca al consultarlo (el teléfono pregunta cada pocos segundos) y cada
+# cambio real sube `version`. `origen` evita el rebote: lo que el teléfono mandó
+# no vuelve al teléfono.
+_CLIP = {"texto": None, "version": 0, "origen": ""}
+_CLIP_LOCK = threading.Lock()
+
+
+def estado_portapapeles() -> dict:
+    """Foto del portapapeles de la PC (y si cambió desde la última consulta)."""
+    with _CLIP_LOCK:
+        actual = leer_portapapeles()
+        if actual != _CLIP["texto"]:
+            _CLIP["texto"] = actual
+            _CLIP["version"] += 1
+            _CLIP["origen"] = "pc"
+        return dict(_CLIP)
+
+
+def poner_portapapeles(texto: str, origen: str = "telefono") -> bool:
+    """Escribe en la PC marcando de dónde vino (para no devolverlo al origen)."""
+    global _CLIP
+    ok = copiar_portapapeles(texto)
+    if ok:
+        with _CLIP_LOCK:
+            _CLIP["texto"] = texto
+            _CLIP["version"] += 1
+            _CLIP["origen"] = origen
+    return ok
+
+
 def leer_portapapeles() -> str:
     """Lo que hay ahora en el portapapeles de la PC."""
     if not shutil.which("wl-paste"):
