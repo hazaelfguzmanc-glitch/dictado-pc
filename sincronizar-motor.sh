@@ -12,22 +12,18 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="${1:-$HOME/dictado-remoto}"
 
 if [[ "$REPO" == "--github" ]]; then
-    for f in motor.py escaner.py; do
-        curl -fsSL "https://raw.githubusercontent.com/hazaelfguzmanc-glitch/dictado-remoto/main/$f" \
-            -o "$DIR/$f"
-    done
-    echo "motor.py y escaner.py bajados de GitHub"
+    curl -fsSL "https://raw.githubusercontent.com/hazaelfguzmanc-glitch/dictado-remoto/main/motor.py" \
+        -o "$DIR/motor.py"
+    echo "motor.py bajado de GitHub"
 else
     [[ -f "$REPO/motor.py" ]] || { echo "no encontré $REPO/motor.py" >&2; exit 1; }
     cp "$REPO/motor.py" "$DIR/motor.py"
-    cp "$REPO/escaner.py" "$DIR/escaner.py"
-    echo "motor.py y escaner.py copiados de $REPO"
+    echo "motor.py copiado de $REPO"
 fi
 
 # Si está instalado, se reinicia para que tome el motor nuevo.
 if systemctl --user is-active --quiet dictado-pc.service 2>/dev/null; then
     install -m 644 "$DIR/motor.py" "$HOME/.local/share/dictado-pc/motor.py"
-    install -m 644 "$DIR/escaner.py" "$HOME/.local/share/dictado-pc/escaner.py"
     systemctl --user restart dictado-pc.service
     echo "dictado-pc reiniciado"
 fi

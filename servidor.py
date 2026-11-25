@@ -36,16 +36,7 @@ from escaner import (
     pegar_en_pc,
     ultimos as escaneos_ultimos,
 )
-from motor import (
-    AUDIO_DIR,
-    IDIOMA,
-    AudioInvalido,
-    poner_portapapeles,
-    estado_portapapeles,
-    es_orden,
-    leer_portapapeles,
-    motor,
-)
+from motor import AUDIO_DIR, IDIOMA, AudioInvalido, es_orden, motor
 
 VERSION = "1.1"
 
@@ -203,32 +194,3 @@ async def transcribir(
         else False
     )
     return JSONResponse(resultado)
-
-
-@app.post("/api/portapapeles")
-async def portapapeles(datos: dict) -> dict:
-    """Texto que llega al portapapeles de la PC (desde el teléfono o a mano)."""
-    texto = str(datos.get("texto", ""))
-    if not texto.strip():
-        raise HTTPException(400, "texto vacio")
-    origen = str(datos.get("origen", "telefono"))
-    ok = poner_portapapeles(texto, origen=origen)
-    return {"copiado": ok, "caracteres": len(texto)}
-
-
-@app.get("/api/portapapeles")
-def portapapeles_leer(version: int = -1) -> dict:
-    """Lo que hay en el portapapeles de la PC.
-
-    `version` es la última que vio el teléfono: si no coincide, la respuesta trae
-    `cambiado=true` y el teléfono lo escribe en su portapapeles (camino PC →
-    teléfono). Si `origen` es "telefono", es lo que él mismo mandó y no se
-    devuelve.
-    """
-    estado = estado_portapapeles()
-    return {
-        "texto": estado["texto"] or "",
-        "version": estado["version"],
-        "origen": estado["origen"],
-        "cambiado": estado["version"] != version,
-    }
