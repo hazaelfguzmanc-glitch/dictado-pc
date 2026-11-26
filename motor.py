@@ -454,7 +454,9 @@ class Motor:
                 return True
 
         try:
-            subprocess.run(["ydotool", "type", "-d", "6", plano], timeout=30, check=True)
+            # 🛡️ [2026-11-26] El respaldo escribe rápido (-d 2, no -d 6): si
+            # el portapapeles falla, al menos que no parezca tipeado lento.
+            subprocess.run(["ydotool", "type", "-d", "2", plano], timeout=30, check=True)
             if enter:
                 time.sleep(0.2)
                 self._ydotool("28:1", "28:0")
@@ -464,21 +466,43 @@ class Motor:
             return False
 
     def _copiar(self, texto: str) -> bool:
-        if not shutil.which("wl-copy"):
-            return False
-        try:
-            subprocess.run(
-                ["wl-copy", "--type", "text/plain;charset=utf-8"],
-                input=texto,
-                text=True,
-                timeout=10,
-                check=True,
-                env=self._env_grafico(),
-            )
-            return True
-        except Exception as exc:  # noqa: BLE001
-            print(f"[motor] wl-copy fallo: {exc}", flush=True)
-            return False
+        env = self._env_grafico()
+        # 🛡️ [2026-11-26] X11 PRIMERO, WAYLAND DE RESPALDO.
+        #
+        # El portapapeles del Xwayland (DISPLAY=:0) responde al instante y es lo
+        # que lee la ventana que tiene el foco (el terminal del dueño). El de
+        # Wayland (wl-copy) en esta sesión se CUELGA (10 s y después el
+        # dictado caía a `ydotool type`, que escribe letra por letra: "lo pone
+        # palabra por palabra"). Con xclip primero, el texto entra pegado.
+        if shutil.which("xclip"):
+            try:
+                subprocess.run(
+                    ["xclip", "-selection", "clipboard", "-t", "UTF8_STRING", "-i"],
+                    input=texto,
+                    text=True,
+                    timeout=5,
+                    check=True,
+                    env=env,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                return True
+            except Exception as exc:  # noqa: BLE001
+                print(f"[motor] xclip fallo: {exc}", flush=True)
+        if shutil.which("wl-copy"):
+            try:
+                subprocess.run(
+                    ["wl-copy", "--type", "text/plain;charset=utf-8"],
+                    input=texto,
+                    text=True,
+                    timeout=3,
+                    check=True,
+                    env=env,
+                )
+                return True
+            except Exception as exc:  # noqa: BLE001
+                print(f"[motor] wl-copy fallo: {exc}", flush=True)
+        return False
 
     def _ydotool(self, *teclas: str) -> bool:
         try:
