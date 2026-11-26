@@ -66,7 +66,7 @@ la elegís desde "Otra dirección a mano" (o queda en la lista de fijas del buil
 |---|---|
 | `servidor.py` | Los endpoints de la APK (`/api/salud`, `/api/parcial`, `/api/transcribir`, `/api/escanear`, `/api/escaneos`) y el aviso UDP del selector. |
 | `motor.py` | El motor de transcripción: **una copia** de `dictado-remoto/motor.py`. |
-| `escaner.py` | Guarda el PDF en `~/Escaneos`, lo deja en el portapapeles y lo pega con Ctrl+V. |
+| `escaner.py` | Guarda el escaneo **en JPEG** en `~/Escaneos`, lo deja en el portapapeles y lo pega con Ctrl+V. |
 | `instalar.sh` | Paquetes, entorno, servicio y firewall. |
 | `dictado-pc` | El comando de control. |
 | `sincronizar-motor.sh` | Trae el motor actualizado desde `dictado-remoto`. |
@@ -89,6 +89,13 @@ Mismo camino que el dictado: el teléfono arma el PDF y esta PC lo deja en
 ventana enfocada. Es lo que usan el aviso "Enviar a la PC" de una captura de
 pantalla y la pestaña Escanear. Si el Ctrl+V no entra, el archivo queda guardado
 y copiado igual.
+
+🛡️ **Se guarda en JPEG, no en PDF** (2026-11-26, lo pidió el dueño: *"no debe
+convertirlo a pdf, debe hacerlo por jpeg mejor"*). El PDF que manda el teléfono
+se rasteriza con `pdftoppm` (poppler, la primera hoja a 150 dpi) y queda
+`escaneo-AAAA-MM-DD_HHMMSS.jpg`. El JPEG se ve en cualquier lado y se adjunta
+igual con Ctrl+V. Si falta poppler o el PDF no se puede leer, queda el PDF de
+siempre: nunca se pierde el escaneo.
 
 ## Puertos
 

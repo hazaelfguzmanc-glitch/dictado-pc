@@ -9,8 +9,9 @@ telefono. Sin escaneo, la captura de pantalla fallaria al elegir esta PC.
     /api/salud        "¿quien dicta aca?" (nombre del equipo + modelo)
     /api/parcial      ultima palabra mientras se graba (detecta "enviar")
     /api/transcribir  transcribe y pega en la ventana enfocada de la PC
-    /api/escanear     recibe el PDF del telefono (foto o captura) y lo pega
-    /api/escaneos     los ultimos PDF recibidos
+    /api/escanear     recibe el PDF del telefono (foto o captura), lo guarda en
+                      JPEG y lo pega
+    /api/escaneos     los ultimos escaneos recibidos (.jpg; los .pdf viejos)
 
 El motor (faster-whisper large-v3 en la GPU, prompt de estilo, hotwords y guarda
 de eco) es el mismo archivo `motor.py` de `dictado-remoto`: no hay dos motores
@@ -89,7 +90,10 @@ def _arranque() -> None:
 def salud() -> dict:
     """Lo que consulta el selector del teléfono: nombre del equipo y modelo."""
     return {
-        "ok": motor.modelo is not None,
+        # ok = el servidor contesta, NO que el modelo esté en VRAM: si el
+        # vigilante lo soltó por inactividad, la APK marcaba la PC "No responde"
+        # y no dejaba elegirla. El estado real del modelo va en `descargado`.
+        "ok": True,
         "equipo": EQUIPO,
         "puerto": PUERTO,
         "version": VERSION,
@@ -126,13 +130,14 @@ async def escanear(
     pegar: bool = Form(True),
     origen: str = Form("movil"),
 ) -> JSONResponse:
-    """Guarda el PDF que manda el teléfono, lo copia y lo pega en la PC.
+    """Guarda el archivo que manda el teléfono, lo copia y lo pega en la PC.
 
     🛡️ ES EL MISMO ENDPOINT QUE USA LA PESTAÑA ESCANEAR Y EL AVISO DE CAPTURAS
     DEL APK: si la PC elegida en el selector no lo tiene, "Enviar a la PC" de una
     captura falla con 404. Por eso este servidor, aunque sea "solo dictado",
-    también recibe imágenes: se guardan en `~/Escaneos`, quedan en el
-    portapapeles como archivo y se pegan con Ctrl+V en la ventana enfocada.
+    también recibe imágenes: se guardan en `~/Escaneos` **en JPEG** (el PDF que
+    llega se rasteriza con poppler, ver `escaner.py`), quedan en el portapapeles
+    como archivo y se pegan con Ctrl+V en la ventana enfocada.
     """
     try:
         destino = guardar_escaneo(pdf.file, origen=origen)
@@ -157,7 +162,7 @@ async def escanear(
 
 @app.get("/api/escaneos")
 def escaneos(n: int = 20) -> dict:
-    """Los últimos PDF recibidos (los lee el agente y el propio teléfono)."""
+    """Los últimos escaneos recibidos (los lee el agente y el propio teléfono)."""
     return {"items": escaneos_ultimos(n)}
 
 
